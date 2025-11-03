@@ -1031,7 +1031,7 @@ section.${c}>footer { z-index: 1; }
 	}
 
 	renderDrawing(elem: OpenXmlElement) {
-		var result = this.renderContainer(elem, "div");
+		var result = this.renderContainer(elem, "span");
 
 		result.style.display = "inline-block";
 		result.style.position = "relative";
