@@ -3535,7 +3535,7 @@ section.${c}>footer { z-index: 1; }
         this.renderElements(comment.children, container);
     }
     renderDrawing(elem) {
-        var result = this.renderContainer(elem, "div");
+        var result = this.renderContainer(elem, "span");
         result.style.display = "inline-block";
         result.style.position = "relative";
         result.style.textIndent = "0px";

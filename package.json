@@ -1,17 +1,16 @@
 {
-  "name": "docx-preview",
-  "version": "0.3.7",
+  "name": "@injamul/docx-preview",
+  "version": "0.3.8",
+  "description": "Maintained fork of docx-preview for rendering DOCX documents in HTML.",
   "license": "Apache-2.0",
   "keywords": [
     "word",
     "docx"
   ],
-  "author": {
-    "name": "Volodymyr Baydalka"
-  },
+  "author": "Injamul Islam",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/VolodymyrBaydalka/docxjs.git"
+    "url": "git+https://github.com/inj-src/docxjs.git"
   },
   "dependencies": {
     "jszip": ">=3.0.0"

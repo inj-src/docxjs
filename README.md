@@ -1,7 +1,9 @@
-[![npm version](https://badge.fury.io/js/docx-preview.svg)](https://www.npmjs.com/package/docx-preview)
-[![Support Ukraine](https://img.shields.io/badge/Support-Ukraine-blue?style=flat&logo=adguard)](https://war.ukraine.ua/)
+# docxjs (Maintained Fork)
 
-# docxjs
+> **Note:** This is a fork of the [docx-preview](https://www.npmjs.com/package/docx-preview) package.  
+> The original project is [VolodymyrBaydalka/docxjs](https://github.com/VolodymyrBaydalka/docxjs).  
+> This fork is maintained for bug fixes and improvements.
+
 Docx rendering library
 
 Demo - https://volodymyrbaydalka.github.io/docxjs/
