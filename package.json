@@ -1,5 +1,5 @@
 {
-  "name": "@injamul/docx-preview",
+  "name": "@inj-src/docx-preview",
   "version": "0.3.8",
   "description": "Maintained fork of docx-preview for rendering DOCX documents in HTML.",
   "license": "Apache-2.0",
