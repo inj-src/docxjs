@@ -60,7 +60,8 @@ export enum DomType {
 	CommentReference = "commentReference",
 	CommentRangeStart = "commentRangeStart",
 	CommentRangeEnd = "commentRangeEnd",
-    AltChunk = "altChunk"
+    AltChunk = "altChunk",
+    DrawingShape = "drawingShape"
 }
 
 export interface OpenXmlElement {
@@ -164,4 +165,26 @@ export interface NumberingPicBullet {
     id: number;
     src: string;
     style?: string;
+}
+
+// Drawing Shape types
+export interface ShapeFill {
+    type: 'solid' | 'gradient' | 'none';
+    color?: string;
+}
+
+export interface ShapeStroke {
+    color?: string;
+    width?: string;
+}
+
+export interface WmlDrawingShape extends OpenXmlElement {
+    presetGeometry?: string;        // "rect", "ellipse", "roundRect", etc.
+    fill?: ShapeFill;
+    stroke?: ShapeStroke;
+    rotation?: number;              // degrees
+    textContent?: OpenXmlElement[]; // Text box content
+    // Visual bounding box dimensions (from extent - accounts for rotation)
+    extentWidth?: string;
+    extentHeight?: string;
 }

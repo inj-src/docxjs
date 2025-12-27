@@ -4,7 +4,8 @@ import {
 	WmlHyperlink, IDomImage, OpenXmlElement, WmlTableColumn, WmlTableCell, WmlText, WmlSymbol, WmlBreak, WmlNoteReference,
 	WmlSmartTag,
 	WmlAltChunk,
-	WmlTableRow
+	WmlTableRow,
+	WmlDrawingShape
 } from './document/dom';
 import { CommonProperties } from './document/common';
 import { Options } from './docx-preview';
@@ -751,6 +752,9 @@ section.${c}>footer { z-index: 1; }
 			case DomType.Image:
 				return this.renderImage(elem as IDomImage);
 
+			case DomType.DrawingShape:
+				return this.renderShape(elem as WmlDrawingShape);
+
 			case DomType.Text:
 				return this.renderText(elem as WmlText);
 
@@ -1066,6 +1070,128 @@ section.${c}>footer { z-index: 1; }
 		}
 
 		return result;
+	}
+
+	renderShape(elem: WmlDrawingShape): Node {
+		// Shape's original (unrotated) dimensions
+		const shapeWidth = elem.cssStyle?.width || "100px";
+		const shapeHeight = elem.cssStyle?.height || "100px";
+
+		// Parse numeric values for calculations
+		const shapeW = parseFloat(shapeWidth);
+		const shapeH = parseFloat(shapeHeight);
+		const rotation = elem.rotation || 0;
+
+		// Calculate rotated bounding box dimensions
+		// When a rectangle is rotated, its bounding box changes
+		const radians = (rotation * Math.PI) / 180;
+		const cos = Math.abs(Math.cos(radians));
+		const sin = Math.abs(Math.sin(radians));
+
+		// Rotated bounding box dimensions
+		const boundingW = shapeW * cos + shapeH * sin;
+		const boundingH = shapeW * sin + shapeH * cos;
+
+		// Get the unit from the original dimension
+		const unit = shapeWidth.replace(/[\d.]+/, '') || 'pt';
+
+		// Create SVG container with ROTATED bounding box dimensions
+		const svg = this.htmlDocument.createElementNS(ns.svg, "svg") as SVGSVGElement;
+		svg.setAttribute("width", `${boundingW}${unit}`);
+		svg.setAttribute("height", `${boundingH}${unit}`);
+		svg.style.overflow = "hidden";
+
+		// Create a group for the rotated content
+		const g = this.htmlDocument.createElementNS(ns.svg, "g") as SVGGElement;
+
+		// Apply internal SVG rotation if needed
+		if (rotation !== 0) {
+			// Translate to center of bounding box, rotate, then translate back to center the shape
+			g.setAttribute("transform",
+				`translate(${boundingW / 2}, ${boundingH / 2}) rotate(${rotation}) translate(${-shapeW / 2}, ${-shapeH / 2})`
+			);
+		}
+
+		// Create shape based on preset geometry
+		let shape: SVGElement;
+		switch (elem.presetGeometry) {
+			case "ellipse":
+			case "oval":
+				shape = this.htmlDocument.createElementNS(ns.svg, "ellipse") as SVGEllipseElement;
+				shape.setAttribute("cx", String(shapeW / 2));
+				shape.setAttribute("cy", String(shapeH / 2));
+				shape.setAttribute("rx", String(shapeW / 2));
+				shape.setAttribute("ry", String(shapeH / 2));
+				break;
+			case "roundRect":
+				shape = this.htmlDocument.createElementNS(ns.svg, "rect") as SVGRectElement;
+				shape.setAttribute("x", "0");
+				shape.setAttribute("y", "0");
+				shape.setAttribute("width", String(shapeW));
+				shape.setAttribute("height", String(shapeH));
+				shape.setAttribute("rx", String(shapeW * 0.1));
+				shape.setAttribute("ry", String(shapeH * 0.1));
+				break;
+			case "line":
+				shape = this.htmlDocument.createElementNS(ns.svg, "line") as SVGLineElement;
+				shape.setAttribute("x1", "0");
+				shape.setAttribute("y1", "0");
+				shape.setAttribute("x2", String(shapeW));
+				shape.setAttribute("y2", String(shapeH));
+				break;
+			case "rect":
+			default:
+				shape = this.htmlDocument.createElementNS(ns.svg, "rect") as SVGRectElement;
+				shape.setAttribute("x", "0");
+				shape.setAttribute("y", "0");
+				shape.setAttribute("width", String(shapeW));
+				shape.setAttribute("height", String(shapeH));
+				break;
+		}
+
+		// Apply fill
+		if (elem.fill) {
+			if (elem.fill.type === 'none') {
+				shape.setAttribute("fill", "none");
+			} else if (elem.fill.color) {
+				shape.setAttribute("fill", elem.fill.color);
+			} else {
+				shape.setAttribute("fill", "transparent");
+			}
+		} else {
+			shape.setAttribute("fill", "transparent");
+		}
+
+		// Apply stroke
+		if (elem.stroke) {
+			shape.setAttribute("stroke", elem.stroke.color || "black");
+			shape.setAttribute("stroke-width", elem.stroke.width || "1px");
+		} else {
+			shape.setAttribute("stroke", "none");
+		}
+
+		g.appendChild(shape);
+
+		// Handle text box content
+		if (elem.textContent?.length) {
+			const foreignObject = this.htmlDocument.createElementNS(ns.svg, "foreignObject");
+			foreignObject.setAttribute("x", "0");
+			foreignObject.setAttribute("y", "0");
+			foreignObject.setAttribute("width", String(shapeW));
+			foreignObject.setAttribute("height", String(shapeH));
+
+			const div = this.createElement("div", {
+				style: "width: 100%; height: 100%; display: flex; align-items: flex-start; justify-content: flex-start; padding: 5px; box-sizing: border-box;"
+			});
+			const innerDiv = this.createElement("div");
+			this.renderElements(elem.textContent, innerDiv);
+			div.appendChild(innerDiv);
+			foreignObject.appendChild(div);
+			g.appendChild(foreignObject);
+		}
+
+		svg.appendChild(g);
+		return svg;
 	}
 
 	renderText(elem: WmlText) {

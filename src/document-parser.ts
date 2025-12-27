@@ -2,7 +2,7 @@ import {
 	DomType, WmlTable, IDomNumbering,
 	WmlHyperlink, WmlSmartTag, IDomImage, OpenXmlElement, WmlTableColumn, WmlTableCell,
 	WmlTableRow, NumberingPicBullet, WmlText, WmlSymbol, WmlBreak, WmlNoteReference,
-	WmlAltChunk
+	WmlAltChunk, WmlDrawingShape, ShapeFill, ShapeStroke
 } from './document/dom';
 import { DocumentElement } from './document/document';
 import { WmlParagraph, parseParagraphProperties, parseParagraphProperty } from './document/paragraph';
@@ -24,7 +24,9 @@ export var autos = {
 	highlight: "transparent"
 };
 
-const supportedNamespaceURIs = [];
+const supportedNamespaceURIs = [
+	"http://schemas.microsoft.com/office/word/2010/wordprocessingShape"
+];
 
 const mmlTagMap = {
 	"oMath": DomType.MmlMath,
@@ -859,6 +861,17 @@ export class DocumentParser {
 		let posX = { relative: "page", align: "left", offset: "0" };
 		let posY = { relative: "page", align: "top", offset: "0" };
 
+		// Extract extent first (visual bounding box dimensions)
+		let extentWidth: string | undefined;
+		let extentHeight: string | undefined;
+		const extentNode = xml.element(node, "extent");
+		if (extentNode) {
+			extentWidth = xml.lengthAttr(extentNode, "cx", LengthUsage.Emu);
+			extentHeight = xml.lengthAttr(extentNode, "cy", LengthUsage.Emu);
+			result.cssStyle["width"] = extentWidth;
+			result.cssStyle["height"] = extentHeight;
+		}
+
 		for (var n of xml.elements(node)) {
 			switch (n.localName) {
 				case "simplePos":
@@ -869,8 +882,7 @@ export class DocumentParser {
 					break;
 
 				case "extent":
-					result.cssStyle["width"] = xml.lengthAttr(n, "cx", LengthUsage.Emu);
-					result.cssStyle["height"] = xml.lengthAttr(n, "cy", LengthUsage.Emu);
+					// Already handled above
 					break;
 
 				case "positionH":
@@ -899,7 +911,7 @@ export class DocumentParser {
 					break;
 
 				case "graphic":
-					var g = this.parseGraphic(n);
+					var g = this.parseGraphic(n, extentWidth, extentHeight);
 
 					if (g)
 						result.children.push(g);
@@ -933,13 +945,15 @@ export class DocumentParser {
 		return result;
 	}
 
-	parseGraphic(elem: Element): OpenXmlElement {
+	parseGraphic(elem: Element, extentWidth?: string, extentHeight?: string): OpenXmlElement {
 		var graphicData = xml.element(elem, "graphicData");
 
 		for (let n of xml.elements(graphicData)) {
 			switch (n.localName) {
 				case "pic":
 					return this.parsePicture(n);
+				case "wsp":
+					return this.parseShape(n, extentWidth, extentHeight);
 			}
 		}
 
@@ -983,6 +997,129 @@ export class DocumentParser {
 						result.cssStyle["top"] = xml.lengthAttr(n, "y", LengthUsage.Emu);
 						break;
 				}
+			}
+		}
+
+		return result;
+	}
+
+	parseShape(elem: Element, extentWidth?: string, extentHeight?: string): WmlDrawingShape {
+		const result: WmlDrawingShape = {
+			type: DomType.DrawingShape,
+			children: [],
+			cssStyle: {},
+			extentWidth,
+			extentHeight
+		};
+
+		const spPr = xml.element(elem, "spPr");
+		if (spPr) {
+			// Parse transform
+			const xfrm = xml.element(spPr, "xfrm");
+			if (xfrm) {
+				result.rotation = xml.intAttr(xfrm, "rot", 0) / 60000; // EMUs to degrees
+				const ext = xml.element(xfrm, "ext");
+				if (ext) {
+					result.cssStyle["width"] = xml.lengthAttr(ext, "cx", LengthUsage.Emu);
+					result.cssStyle["height"] = xml.lengthAttr(ext, "cy", LengthUsage.Emu);
+				}
+			}
+
+			// Parse geometry
+			const prstGeom = xml.element(spPr, "prstGeom");
+			if (prstGeom) {
+				result.presetGeometry = xml.attr(prstGeom, "prst");
+			}
+
+			// Parse fill
+			const solidFill = xml.element(spPr, "solidFill");
+			if (solidFill) {
+				result.fill = this.parseSolidFill(solidFill);
+			} else {
+				const noFill = xml.element(spPr, "noFill");
+				if (noFill) {
+					result.fill = { type: 'none' };
+				}
+			}
+
+			// Parse line/stroke
+			const ln = xml.element(spPr, "ln");
+			if (ln) {
+				result.stroke = this.parseLineProperties(ln);
+			}
+		}
+
+		// Parse text box content
+		const txbx = xml.element(elem, "txbx");
+		if (txbx) {
+			const txbxContent = xml.element(txbx, "txbxContent");
+			if (txbxContent) {
+				result.textContent = this.parseBodyElements(txbxContent);
+			}
+		}
+
+		return result;
+	}
+
+	parseSolidFill(elem: Element): ShapeFill {
+		const result: ShapeFill = { type: 'solid' };
+
+		// Check for srgbClr (direct RGB color)
+		const srgbClr = xml.element(elem, "srgbClr");
+		if (srgbClr) {
+			result.color = "#" + xml.attr(srgbClr, "val");
+			return result;
+		}
+
+		// Check for schemeClr (theme color)
+		const schemeClr = xml.element(elem, "schemeClr");
+		if (schemeClr) {
+			const val = xml.attr(schemeClr, "val");
+			// Map common scheme colors to reasonable defaults
+			const schemeColorMap: Record<string, string> = {
+				"lt1": "#ffffff",
+				"lt2": "#f0f0f0",
+				"dk1": "#000000",
+				"dk2": "#333333",
+				"accent1": "#4472c4",
+				"accent2": "#ed7d31",
+				"accent3": "#a5a5a5",
+				"accent4": "#ffc000",
+				"accent5": "#5b9bd5",
+				"accent6": "#70ad47"
+			};
+			result.color = schemeColorMap[val] || "#ffffff";
+			return result;
+		}
+
+		return result;
+	}
+
+	parseLineProperties(elem: Element): ShapeStroke {
+		const result: ShapeStroke = {};
+
+		// Parse line width
+		const w = xml.attr(elem, "w");
+		if (w) {
+			result.width = convertLength(w, LengthUsage.Emu);
+		}
+
+		// Parse solid fill for stroke color
+		const solidFill = xml.element(elem, "solidFill");
+		if (solidFill) {
+			const srgbClr = xml.element(solidFill, "srgbClr");
+			if (srgbClr) {
+				result.color = "#" + xml.attr(srgbClr, "val");
+			}
+			const schemeClr = xml.element(solidFill, "schemeClr");
+			if (schemeClr) {
+				const val = xml.attr(schemeClr, "val");
+				const schemeColorMap: Record<string, string> = {
+					"lt1": "#ffffff",
+					"dk1": "#000000",
+					"tx1": "#000000"
+				};
+				result.color = schemeColorMap[val] || "#000000";
 			}
 		}
 
