@@ -1,0 +1,215 @@
+﻿<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<w:document xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas"
+   xmlns:cx="http://schemas.microsoft.com/office/drawing/2014/chartex"
+   xmlns:cx1="http://schemas.microsoft.com/office/drawing/2015/9/8/chartex"
+   xmlns:cx2="http://schemas.microsoft.com/office/drawing/2015/10/21/chartex"
+   xmlns:cx3="http://schemas.microsoft.com/office/drawing/2016/5/9/chartex"
+   xmlns:cx4="http://schemas.microsoft.com/office/drawing/2016/5/10/chartex"
+   xmlns:cx5="http://schemas.microsoft.com/office/drawing/2016/5/11/chartex"
+   xmlns:cx6="http://schemas.microsoft.com/office/drawing/2016/5/12/chartex"
+   xmlns:cx7="http://schemas.microsoft.com/office/drawing/2016/5/13/chartex"
+   xmlns:cx8="http://schemas.microsoft.com/office/drawing/2016/5/14/chartex"
+   xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+   xmlns:aink="http://schemas.microsoft.com/office/drawing/2016/ink"
+   xmlns:am3d="http://schemas.microsoft.com/office/drawing/2017/model3d"
+   xmlns:o="urn:schemas-microsoft-com:office:office"
+   xmlns:oel="http://schemas.microsoft.com/office/2019/extlst"
+   xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+   xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"
+   xmlns:v="urn:schemas-microsoft-com:vml"
+   xmlns:wp14="http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing"
+   xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
+   xmlns:w10="urn:schemas-microsoft-com:office:word"
+   xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+   xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml"
+   xmlns:w15="http://schemas.microsoft.com/office/word/2012/wordml"
+   xmlns:w16cex="http://schemas.microsoft.com/office/word/2018/wordml/cex"
+   xmlns:w16cid="http://schemas.microsoft.com/office/word/2016/wordml/cid"
+   xmlns:w16="http://schemas.microsoft.com/office/word/2018/wordml"
+   xmlns:w16du="http://schemas.microsoft.com/office/word/2023/wordml/word16du"
+   xmlns:w16sdtdh="http://schemas.microsoft.com/office/word/2020/wordml/sdtdatahash"
+   xmlns:w16sdtfl="http://schemas.microsoft.com/office/word/2024/wordml/sdtformatlock"
+   xmlns:w16se="http://schemas.microsoft.com/office/word/2015/wordml/symex"
+   xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup"
+   xmlns:wpi="http://schemas.microsoft.com/office/word/2010/wordprocessingInk"
+   xmlns:wne="http://schemas.microsoft.com/office/word/2006/wordml"
+   xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape"
+   mc:Ignorable="w14 w15 w16se w16cid w16 w16cex w16sdtdh w16sdtfl w16du wp14"
+   xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
+   xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
+   <w:body>
+      <w:p w:rsidR="002C0D47" w:rsidP="2B2506F0" w:rsidRDefault="00C91236" w14:paraId="25E854C9"
+         xmlns:wp14="http://schemas.microsoft.com/office/word/2010/wordml" wp14:textId="0D67E74A">
+         <w:pPr>
+            <w:jc w:val="center" />
+         </w:pPr>
+         <w:r>
+            <w:rPr>
+               <w:noProof />
+            </w:rPr>
+            <mc:AlternateContent
+               xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006">
+               <mc:Choice Requires="wpg"
+                  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006">
+                  <w:drawing xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+                     <wp:inline distT="0" distB="0" distL="0" distR="0"
+                        xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
+                        wp14:anchorId="6FAB48A8" wp14:editId="045977F5"
+                        xmlns:wp14="http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing">
+                        <wp:extent cx="4804098" cy="599219"
+                           xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" />
+                        <wp:effectExtent l="0" t="19050" r="15875" b="29845"
+                           xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" />
+                        <wp:docPr id="1107096328" name="Group 1"
+                           xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" />
+                        <wp:cNvGraphicFramePr
+                           xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" />
+                        <a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+                           <a:graphicData
+                              uri="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup">
+                              <wpg:wgp
+                                 xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup">
+                                 <wpg:cNvGrpSpPr />
+                                 <wpg:grpSpPr>
+                                    <a:xfrm>
+                                       <a:off x="0" y="0" />
+                                       <a:ext cx="4804098" cy="599219" />
+                                       <a:chOff x="0" y="0" />
+                                       <a:chExt cx="4804099" cy="599219" />
+                                    </a:xfrm>
+                                 </wpg:grpSpPr>
+                                 <wps:wsp
+                                    xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">
+                                    <wps:cNvPr id="532612988" name="Arrow: Down 532612988" />
+                                    <wps:cNvSpPr />
+                                    <wps:spPr>
+                                       <a:xfrm rot="16200000">
+                                          <a:off x="384274" y="-384274" />
+                                          <a:ext cx="599219" cy="1367768" />
+                                       </a:xfrm>
+                                       <a:prstGeom prst="downArrow">
+                                          <a:avLst />
+                                       </a:prstGeom>
+                                       <a:ln />
+                                    </wps:spPr>
+                                    <wps:style>
+                                       <a:lnRef idx="2">
+                                          <a:schemeClr val="accent1">
+                                             <a:shade val="50000" />
+                                          </a:schemeClr>
+                                       </a:lnRef>
+                                       <a:fillRef idx="1">
+                                          <a:schemeClr val="accent1" />
+                                       </a:fillRef>
+                                       <a:effectRef idx="0">
+                                          <a:scrgbClr r="0" g="0" b="0" />
+                                       </a:effectRef>
+                                       <a:fontRef idx="minor">
+                                          <a:schemeClr val="lt1" />
+                                       </a:fontRef>
+                                    </wps:style>
+                                    <wps:bodyPr anchor="ctr" />
+                                 </wps:wsp>
+                                 <wps:wsp
+                                    xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">
+                                    <wps:cNvPr id="446897864" name="Arrow: Down 446897864" />
+                                    <wps:cNvSpPr />
+                                    <wps:spPr>
+                                       <a:xfrm rot="27000000">
+                                          <a:off x="3820605" y="-384274" />
+                                          <a:ext cx="599219" cy="1367768" />
+                                       </a:xfrm>
+                                       <a:prstGeom prst="downArrow">
+                                          <a:avLst />
+                                       </a:prstGeom>
+                                       <a:ln />
+                                    </wps:spPr>
+                                    <wps:style>
+                                       <a:lnRef idx="2">
+                                          <a:schemeClr val="accent1">
+                                             <a:shade val="50000" />
+                                          </a:schemeClr>
+                                       </a:lnRef>
+                                       <a:fillRef idx="1">
+                                          <a:schemeClr val="accent1" />
+                                       </a:fillRef>
+                                       <a:effectRef idx="0">
+                                          <a:scrgbClr r="0" g="0" b="0" />
+                                       </a:effectRef>
+                                       <a:fontRef idx="minor">
+                                          <a:schemeClr val="lt1" />
+                                       </a:fontRef>
+                                    </wps:style>
+                                    <wps:bodyPr anchor="ctr" />
+                                 </wps:wsp>
+                                 <wps:wsp
+                                    xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">
+                                    <wps:cNvPr id="2039490049" name="Rectangle 2039490049" />
+                                    <wps:cNvSpPr />
+                                    <wps:spPr>
+                                       <a:xfrm>
+                                          <a:off x="1367768" y="106022" />
+                                          <a:ext cx="2067744" cy="387176" />
+                                       </a:xfrm>
+                                       <a:prstGeom prst="rect">
+                                          <a:avLst />
+                                       </a:prstGeom>
+                                       <a:solidFill>
+                                          <a:schemeClr val="lt1" />
+                                       </a:solidFill>
+                                       <a:ln>
+                                          <a:solidFill>
+                                             <a:srgbClr val="000000" />
+                                          </a:solidFill>
+                                       </a:ln>
+                                    </wps:spPr>
+                                    <wps:txbx>
+                                       <w:txbxContent
+                                          xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+                                          <w:p w:rsidR="00462A0A" w:rsidP="00462A0A"
+                                             w:rsidRDefault="00462A0A">
+                                             <w:pPr>
+                                                <w:jc w:val="center" />
+                                                <w:rPr>
+                                                   <w:rFonts w:ascii="Aptos" w:hAnsi="Aptos" />
+                                                   <w:color w:val="000000" />
+                                                   <w:kern w:val="0" />
+                                                   <w:sz w:val="32" />
+                                                   <w:szCs w:val="32" />
+                                                   <w14:ligatures w14:val="none"
+                                                      xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml" />
+                                                </w:rPr>
+                                             </w:pPr>
+                                             <w:r>
+                                                <w:rPr>
+                                                   <w:rFonts w:ascii="Aptos" w:hAnsi="Aptos" />
+                                                   <w:color w:val="000000" />
+                                                   <w:sz w:val="32" />
+                                                   <w:szCs w:val="32" />
+                                                </w:rPr>
+                                                <w:t>The Admission form</w:t>
+                                             </w:r>
+                                          </w:p>
+                                       </w:txbxContent>
+                                    </wps:txbx>
+                                    <wps:bodyPr anchor="t" />
+                                 </wps:wsp>
+                              </wpg:wgp>
+                           </a:graphicData>
+                        </a:graphic>
+                     </wp:inline>
+                  </w:drawing>
+               </mc:Choice>
+               <mc:Fallback xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" />
+            </mc:AlternateContent>
+         </w:r>
+      </w:p>
+      <w:sectPr w:rsidR="002C0D47">
+         <w:pgSz w:w="12240" w:h="15840" w:orient="portrait" />
+         <w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="720"
+            w:footer="720" w:gutter="0" />
+         <w:pgNumType w:start="1" />
+         <w:cols w:space="720" />
+      </w:sectPr>
+   </w:body>
+</w:document>

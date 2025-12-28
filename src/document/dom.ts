@@ -61,7 +61,8 @@ export enum DomType {
 	CommentRangeStart = "commentRangeStart",
 	CommentRangeEnd = "commentRangeEnd",
     AltChunk = "altChunk",
-    DrawingShape = "drawingShape"
+    DrawingShape = "drawingShape",
+    DrawingGroup = "drawingGroup"
 }
 
 export interface OpenXmlElement {
@@ -179,12 +180,23 @@ export interface ShapeStroke {
 }
 
 export interface WmlDrawingShape extends OpenXmlElement {
-    presetGeometry?: string;        // "rect", "ellipse", "roundRect", etc.
+    presetGeometry?: string;        // "rect", "ellipse", "roundRect", "downArrow", etc.
     fill?: ShapeFill;
     stroke?: ShapeStroke;
     rotation?: number;              // degrees
     textContent?: OpenXmlElement[]; // Text box content
     // Visual bounding box dimensions (from extent - accounts for rotation)
+    extentWidth?: string;
+    extentHeight?: string;
+    // Position offset within a group (in pt)
+    offsetX?: string;
+    offsetY?: string;
+    adjustments?: Record<string, number>;
+}
+
+export interface WmlDrawingGroup extends OpenXmlElement {
+    rotation?: number;              // degrees
+    // Visual bounding box dimensions
     extentWidth?: string;
     extentHeight?: string;
 }

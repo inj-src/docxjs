@@ -5,7 +5,8 @@ import {
 	WmlSmartTag,
 	WmlAltChunk,
 	WmlTableRow,
-	WmlDrawingShape
+	WmlDrawingShape,
+	WmlDrawingGroup
 } from './document/dom';
 import { CommonProperties } from './document/common';
 import { Options } from './docx-preview';
@@ -13,6 +14,7 @@ import { DocumentElement } from './document/document';
 import { WmlParagraph } from './document/paragraph';
 import { asArray, encloseFontFamily, escapeClassName, isString, keyBy, mergeDeep } from './utils';
 import { computePixelToPoint, updateTabStop } from './javascript';
+import { evaluateGeometry } from './presets/geometry-evaluator';
 import { FontTablePart } from './font-table/font-table';
 import { FooterHeaderReference, SectionProperties } from './document/section';
 import { WmlRun, RunProperties } from './document/run';
@@ -755,6 +757,9 @@ section.${c}>footer { z-index: 1; }
 			case DomType.DrawingShape:
 				return this.renderShape(elem as WmlDrawingShape);
 
+			case DomType.DrawingGroup:
+				return this.renderGroup(elem as WmlDrawingGroup);
+
 			case DomType.Text:
 				return this.renderText(elem as WmlText);
 
@@ -1083,7 +1088,6 @@ section.${c}>footer { z-index: 1; }
 		const rotation = elem.rotation || 0;
 
 		// Calculate rotated bounding box dimensions
-		// When a rectangle is rotated, its bounding box changes
 		const radians = (rotation * Math.PI) / 180;
 		const cos = Math.abs(Math.cos(radians));
 		const sin = Math.abs(Math.sin(radians));
@@ -1101,6 +1105,15 @@ section.${c}>footer { z-index: 1; }
 		svg.setAttribute("height", `${boundingH}${unit}`);
 		svg.style.overflow = "hidden";
 
+		// Apply offset positioning if within a group
+		if (elem.offsetX || elem.offsetY) {
+			const offsetX = parseFloat(elem.offsetX || "0");
+			const offsetY = parseFloat(elem.offsetY || "0");
+			svg.style.position = "absolute";
+			svg.style.left = `${offsetX}${unit}`;
+			svg.style.top = `${offsetY}${unit}`;
+		}
+
 		// Create a group for the rotated content
 		const g = this.htmlDocument.createElementNS(ns.svg, "g") as SVGGElement;
 
@@ -1112,65 +1125,46 @@ section.${c}>footer { z-index: 1; }
 			);
 		}
 
-		// Create shape based on preset geometry
-		let shape: SVGElement;
-		switch (elem.presetGeometry) {
-			case "ellipse":
-			case "oval":
-				shape = this.htmlDocument.createElementNS(ns.svg, "ellipse") as SVGEllipseElement;
-				shape.setAttribute("cx", String(shapeW / 2));
-				shape.setAttribute("cy", String(shapeH / 2));
-				shape.setAttribute("rx", String(shapeW / 2));
-				shape.setAttribute("ry", String(shapeH / 2));
-				break;
-			case "roundRect":
-				shape = this.htmlDocument.createElementNS(ns.svg, "rect") as SVGRectElement;
-				shape.setAttribute("x", "0");
-				shape.setAttribute("y", "0");
-				shape.setAttribute("width", String(shapeW));
-				shape.setAttribute("height", String(shapeH));
-				shape.setAttribute("rx", String(shapeW * 0.1));
-				shape.setAttribute("ry", String(shapeH * 0.1));
-				break;
-			case "line":
-				shape = this.htmlDocument.createElementNS(ns.svg, "line") as SVGLineElement;
-				shape.setAttribute("x1", "0");
-				shape.setAttribute("y1", "0");
-				shape.setAttribute("x2", String(shapeW));
-				shape.setAttribute("y2", String(shapeH));
-				break;
-			case "rect":
-			default:
-				shape = this.htmlDocument.createElementNS(ns.svg, "rect") as SVGRectElement;
-				shape.setAttribute("x", "0");
-				shape.setAttribute("y", "0");
-				shape.setAttribute("width", String(shapeW));
-				shape.setAttribute("height", String(shapeH));
-				break;
+		// Evaluate geometry using presets
+		const presetName = elem.presetGeometry || 'rect';
+		let paths = evaluateGeometry(presetName, shapeW, shapeH, elem.adjustments);
+
+		// Fallback to rect if no paths found (e.g. invalid preset name)
+		if (!paths || paths.length === 0) {
+			paths = evaluateGeometry('rect', shapeW, shapeH, elem.adjustments);
 		}
 
-		// Apply fill
-		if (elem.fill) {
-			if (elem.fill.type === 'none') {
+		for (const pDef of paths) {
+			const shape = this.htmlDocument.createElementNS(ns.svg, "path") as SVGPathElement;
+			shape.setAttribute("d", pDef.d);
+
+			// Apply fill
+			if (pDef.fill === 'none') {
 				shape.setAttribute("fill", "none");
-			} else if (elem.fill.color) {
-				shape.setAttribute("fill", elem.fill.color);
+			} else if (elem.fill) {
+				if (elem.fill.type === 'none') {
+					shape.setAttribute("fill", "none");
+				} else if (elem.fill.color) {
+					shape.setAttribute("fill", elem.fill.color);
+				} else {
+					shape.setAttribute("fill", "transparent");
+				}
 			} else {
 				shape.setAttribute("fill", "transparent");
 			}
-		} else {
-			shape.setAttribute("fill", "transparent");
-		}
 
-		// Apply stroke
-		if (elem.stroke) {
-			shape.setAttribute("stroke", elem.stroke.color || "black");
-			shape.setAttribute("stroke-width", elem.stroke.width || "1px");
-		} else {
-			shape.setAttribute("stroke", "none");
-		}
+			// Apply stroke
+			if (pDef.stroke === false) {
+				shape.setAttribute("stroke", "none");
+			} else if (elem.stroke) {
+				shape.setAttribute("stroke", elem.stroke.color || "black");
+				shape.setAttribute("stroke-width", elem.stroke.width || "1px");
+			} else {
+				shape.setAttribute("stroke", "none");
+			}
 
-		g.appendChild(shape);
+			g.appendChild(shape);
+		}
 
 		// Handle text box content
 		if (elem.textContent?.length) {
@@ -1192,6 +1186,51 @@ section.${c}>footer { z-index: 1; }
 
 		svg.appendChild(g);
 		return svg;
+	}
+
+	renderGroup(elem: WmlDrawingGroup): Node {
+		// Get group dimensions
+		const groupWidth = elem.cssStyle?.width || elem.extentWidth || "100px";
+		const groupHeight = elem.cssStyle?.height || elem.extentHeight || "100px";
+
+		// Parse numeric values
+		const groupW = parseFloat(groupWidth);
+		const groupH = parseFloat(groupHeight);
+		const rotation = elem.rotation || 0;
+
+		// Calculate rotated bounding box dimensions
+		const radians = (rotation * Math.PI) / 180;
+		const cos = Math.abs(Math.cos(radians));
+		const sin = Math.abs(Math.sin(radians));
+
+		const boundingW = groupW * cos + groupH * sin;
+		const boundingH = groupW * sin + groupH * cos;
+
+		// Get the unit from the original dimension
+		const unit = groupWidth.replace(/[\d.]+/, '') || 'pt';
+
+		// Create a container div with relative positioning for child absolute positioning
+		const container = this.createElement("div", {
+			style: `position: relative; width: ${boundingW}${unit}; height: ${boundingH}${unit}; display: inline-block;`
+		});
+
+		// Render child shapes into the group
+		if (elem.children) {
+			for (const child of elem.children) {
+				const rendered = this.renderElement(child);
+				if (rendered) {
+					if (Array.isArray(rendered)) {
+						for (const node of rendered) {
+							if (node) container.appendChild(node);
+						}
+					} else {
+						container.appendChild(rendered);
+					}
+				}
+			}
+		}
+
+		return container;
 	}
 
 	renderText(elem: WmlText) {

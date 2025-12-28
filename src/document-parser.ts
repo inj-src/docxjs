@@ -2,7 +2,7 @@ import {
 	DomType, WmlTable, IDomNumbering,
 	WmlHyperlink, WmlSmartTag, IDomImage, OpenXmlElement, WmlTableColumn, WmlTableCell,
 	WmlTableRow, NumberingPicBullet, WmlText, WmlSymbol, WmlBreak, WmlNoteReference,
-	WmlAltChunk, WmlDrawingShape, ShapeFill, ShapeStroke
+	WmlAltChunk, WmlDrawingShape, WmlDrawingGroup, ShapeFill, ShapeStroke
 } from './document/dom';
 import { DocumentElement } from './document/document';
 import { WmlParagraph, parseParagraphProperties, parseParagraphProperty } from './document/paragraph';
@@ -25,7 +25,8 @@ export var autos = {
 };
 
 const supportedNamespaceURIs = [
-	"http://schemas.microsoft.com/office/word/2010/wordprocessingShape"
+	"http://schemas.microsoft.com/office/word/2010/wordprocessingShape",
+	"http://schemas.microsoft.com/office/word/2010/wordprocessingGroup"
 ];
 
 const mmlTagMap = {
@@ -639,6 +640,9 @@ export class DocumentParser {
 		for (let c of xml.elements(node)) {
 			c = this.checkAlternateContent(c);
 
+			// Skip if AlternateContent has empty Fallback and unsupported Choice
+			if (!c) continue;
+
 			switch (c.localName) {
 				case "t":
 					result.children.push(<WmlText>{
@@ -954,6 +958,8 @@ export class DocumentParser {
 					return this.parsePicture(n);
 				case "wsp":
 					return this.parseShape(n, extentWidth, extentHeight);
+				case "wgp":
+					return this.parseWordprocessingGroup(n, extentWidth, extentHeight);
 			}
 		}
 
@@ -1023,12 +1029,30 @@ export class DocumentParser {
 					result.cssStyle["width"] = xml.lengthAttr(ext, "cx", LengthUsage.Emu);
 					result.cssStyle["height"] = xml.lengthAttr(ext, "cy", LengthUsage.Emu);
 				}
+				// Parse offset (position within group)
+				const off = xml.element(xfrm, "off");
+				if (off) {
+					result.offsetX = xml.lengthAttr(off, "x", LengthUsage.Emu);
+					result.offsetY = xml.lengthAttr(off, "y", LengthUsage.Emu);
+				}
 			}
 
 			// Parse geometry
 			const prstGeom = xml.element(spPr, "prstGeom");
 			if (prstGeom) {
 				result.presetGeometry = xml.attr(prstGeom, "prst");
+				const avLst = xml.element(prstGeom, "avLst");
+				if (avLst) {
+					result.adjustments = {};
+					for (const gd of xml.elements(avLst, "gd")) {
+						const name = xml.attr(gd, "name");
+						const fmla = xml.attr(gd, "fmla");
+						// format is "val 12345"
+						if (fmla?.startsWith("val ")) {
+							result.adjustments[name] = parseInt(fmla.substring(4));
+						}
+					}
+				}
 			}
 
 			// Parse fill
@@ -1049,12 +1073,104 @@ export class DocumentParser {
 			}
 		}
 
+		// Parse style (fallback fill/stroke from style references)
+		const style = xml.element(elem, "style");
+		if (style) {
+			// If no explicit fill, try to get from style fillRef
+			if (!result.fill) {
+				const fillRef = xml.element(style, "fillRef");
+				if (fillRef) {
+					const schemeClr = xml.element(fillRef, "schemeClr");
+					if (schemeClr) {
+						const val = xml.attr(schemeClr, "val");
+						const schemeColorMap: Record<string, string> = {
+							"lt1": "#ffffff",
+							"lt2": "#f0f0f0",
+							"dk1": "#000000",
+							"dk2": "#333333",
+							"accent1": "#4472c4",
+							"accent2": "#ed7d31",
+							"accent3": "#a5a5a5",
+							"accent4": "#ffc000",
+							"accent5": "#5b9bd5",
+							"accent6": "#70ad47"
+						};
+						result.fill = { type: 'solid', color: schemeColorMap[val] || "#4472c4" };
+					}
+				}
+			}
+			// If no explicit stroke, try to get from style lnRef
+			if (!result.stroke) {
+				const lnRef = xml.element(style, "lnRef");
+				if (lnRef) {
+					const schemeClr = xml.element(lnRef, "schemeClr");
+					if (schemeClr) {
+						const val = xml.attr(schemeClr, "val");
+						const idx = xml.intAttr(lnRef, "idx", 0);
+						if (idx > 0) {
+							const schemeColorMap: Record<string, string> = {
+								"lt1": "#ffffff",
+								"dk1": "#000000",
+								"accent1": "#2f5597"  // accent1 with shade
+							};
+							result.stroke = { color: schemeColorMap[val] || "#2f5597", width: "1pt" };
+						}
+					}
+				}
+			}
+		}
+
 		// Parse text box content
 		const txbx = xml.element(elem, "txbx");
 		if (txbx) {
 			const txbxContent = xml.element(txbx, "txbxContent");
 			if (txbxContent) {
 				result.textContent = this.parseBodyElements(txbxContent);
+			}
+		}
+
+		return result;
+	}
+
+	parseWordprocessingGroup(elem: Element, extentWidth?: string, extentHeight?: string): WmlDrawingGroup {
+		const result: WmlDrawingGroup = {
+			type: DomType.DrawingGroup,
+			children: [],
+			cssStyle: {},
+			extentWidth,
+			extentHeight
+		};
+
+		// Parse group properties (grpSpPr)
+		const grpSpPr = xml.element(elem, "grpSpPr");
+		if (grpSpPr) {
+			const xfrm = xml.element(grpSpPr, "xfrm");
+			if (xfrm) {
+				result.rotation = xml.intAttr(xfrm, "rot", 0) / 60000;
+				const ext = xml.element(xfrm, "ext");
+				if (ext) {
+					result.cssStyle["width"] = xml.lengthAttr(ext, "cx", LengthUsage.Emu);
+					result.cssStyle["height"] = xml.lengthAttr(ext, "cy", LengthUsage.Emu);
+				}
+			}
+		}
+
+		// Parse child elements (wsp, pic, grpSp for nested groups)
+		for (const child of xml.elements(elem)) {
+			switch (child.localName) {
+				case "wsp":
+					const shape = this.parseShape(child, extentWidth, extentHeight);
+					if (shape) result.children.push(shape);
+					break;
+				case "pic":
+					const pic = this.parsePicture(child);
+					if (pic) result.children.push(pic);
+					break;
+				case "grpSp":
+					// Nested group - recursively parse
+					const nestedGroup = this.parseWordprocessingGroup(child, extentWidth, extentHeight);
+					if (nestedGroup) result.children.push(nestedGroup);
+					break;
 			}
 		}
 
