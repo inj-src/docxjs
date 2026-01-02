@@ -1009,13 +1009,14 @@ export class DocumentParser {
 		return result;
 	}
 
-	parseShape(elem: Element, extentWidth?: string, extentHeight?: string): WmlDrawingShape {
+	parseShape(elem: Element, extentWidth?: string, extentHeight?: string, isInGroup: boolean = false): WmlDrawingShape {
 		const result: WmlDrawingShape = {
 			type: DomType.DrawingShape,
 			children: [],
 			cssStyle: {},
 			extentWidth,
-			extentHeight
+			extentHeight,
+			isInGroup
 		};
 
 		const spPr = xml.element(elem, "spPr");
@@ -1159,7 +1160,7 @@ export class DocumentParser {
 		for (const child of xml.elements(elem)) {
 			switch (child.localName) {
 				case "wsp":
-					const shape = this.parseShape(child, extentWidth, extentHeight);
+					const shape = this.parseShape(child, extentWidth, extentHeight, true);
 					if (shape) result.children.push(shape);
 					break;
 				case "pic":

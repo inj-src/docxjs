@@ -1087,30 +1087,19 @@ section.${c}>footer { z-index: 1; }
 		const shapeH = parseFloat(shapeHeight);
 		const rotation = elem.rotation || 0;
 
-		// Parse stroke width to account for stroke extending beyond shape bounds
-		// Stroke is drawn centered on the path, so half extends outside
-		let strokeWidth = 0;
-		if (elem.stroke?.width) {
-			strokeWidth = parseFloat(elem.stroke.width) || 0;
-		}
-
 		// Calculate rotated bounding box dimensions
 		const radians = (rotation * Math.PI) / 180;
 		const cos = Math.abs(Math.cos(radians));
 		const sin = Math.abs(Math.sin(radians));
 
-		// Rotated bounding box dimensions (shape only, without stroke)
-		const rotatedW = shapeW * cos + shapeH * sin;
-		const rotatedH = shapeW * sin + shapeH * cos;
-
-		// Add stroke width to bounding box (stroke extends half on each side)
-		const boundingW = rotatedW + strokeWidth;
-		const boundingH = rotatedH + strokeWidth;
+		// Rotated bounding box dimensions
+		const boundingW = shapeW * cos + shapeH * sin;
+		const boundingH = shapeW * sin + shapeH * cos;
 
 		// Get the unit from the original dimension
 		const unit = shapeWidth.replace(/[\d.]+/, '') || 'pt';
 
-		// Create SVG container with ROTATED bounding box dimensions + stroke
+		// Create SVG container with ROTATED bounding box dimensions
 		const svg = this.htmlDocument.createElementNS(ns.svg, "svg") as SVGSVGElement;
 		svg.setAttribute("width", `${boundingW}${unit}`);
 		svg.setAttribute("height", `${boundingH}${unit}`);
@@ -1122,12 +1111,14 @@ section.${c}>footer { z-index: 1; }
 		svg.setAttribute("viewBox", `0 0 ${boundingW} ${boundingH}`);
 		svg.style.overflow = "hidden";
 
-		// Apply offset positioning if within a group
+		// Apply offset positioning ONLY if within a group.
+		// For inline shapes (not in a group), we don't apply offset positioning
+		// even if offset values exist, because the shape should flow inline with text.
 		// OOXML offset specifies the position of the unrotated shape's top-left corner.
 		// The shape is then rotated around its center.
 		// We need to calculate where our rotated bounding box should be positioned
 		// so that its center aligns with the intended center of the rotated shape.
-		if (elem.offsetX || elem.offsetY) {
+		if (elem.isInGroup) {
 			const offsetX = parseFloat(elem.offsetX || "0");
 			const offsetY = parseFloat(elem.offsetY || "0");
 
@@ -1148,16 +1139,12 @@ section.${c}>footer { z-index: 1; }
 		// Create a group for the rotated content
 		const g = this.htmlDocument.createElementNS(ns.svg, "g") as SVGGElement;
 
-		// Calculate stroke offset (half stroke width on each side)
-		const strokeOffset = strokeWidth / 2;
-
-		// Apply transform: offset for stroke + rotation if needed
+		// Apply internal SVG rotation if needed
 		if (rotation !== 0) {
+			// Translate to center of bounding box, rotate, then translate back to center the shape
 			g.setAttribute("transform",
-				`translate(${strokeOffset}, ${strokeOffset}) translate(${rotatedW / 2}, ${rotatedH / 2}) rotate(${rotation}) translate(${-shapeW / 2}, ${-shapeH / 2})`
+				`translate(${boundingW / 2}, ${boundingH / 2}) rotate(${rotation}) translate(${-shapeW / 2}, ${-shapeH / 2})`
 			);
-		} else if (strokeOffset > 0) {
-			g.setAttribute("transform", `translate(${strokeOffset}, ${strokeOffset})`);
 		}
 
 		// Evaluate geometry using presets

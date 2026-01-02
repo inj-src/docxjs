@@ -192,6 +192,8 @@ export interface WmlDrawingShape extends OpenXmlElement {
     offsetX?: string;
     offsetY?: string;
     adjustments?: Record<string, number>;
+    // Flag to indicate if shape is inside a group (affects positioning)
+    isInGroup?: boolean;
 }
 
 export interface WmlDrawingGroup extends OpenXmlElement {
