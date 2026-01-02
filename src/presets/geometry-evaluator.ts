@@ -74,9 +74,10 @@ export function evaluateGeometry(
 
 function evaluateFormula(guide: GuideFormula, vars: Vars): number {
    const args = guide.args.map(a => {
-      // arg can be number or variable name
-      if (!isNaN(parseFloat(a))) return parseFloat(a);
-      return vars[a] || 0;
+      if (vars[a] !== undefined) return vars[a];
+      const parsed = parseFloat(a);
+      if (!isNaN(parsed)) return parsed;
+      return 0;
    });
 
    const [a, b, c] = args;
@@ -104,58 +105,97 @@ function evaluateFormula(guide: GuideFormula, vars: Vars): number {
 }
 
 function buildSvgPath(shapePath: ShapePath, vars: Vars): string {
+   // Track current point for arc calculations
+   let curX = 0;
+   let curY = 0;
+
    return shapePath.commands.map(cmd => {
       const d = cmd.data.map(val => {
          // data can be variable name or string number or mix
          if (typeof val === 'number') return val;
-         if (!isNaN(parseFloat(val))) return parseFloat(val);
-         return vars[val] || 0;
+         // Try variable lookup first - critical for variables like "3cd4" which parseFloat
+         // would incorrectly parse as 3 (parseFloat parses leading numeric portion)
+         if (vars[val] !== undefined) return vars[val];
+         // Fall back to parsing as number for literal numeric strings like "100000"
+         const parsed = parseFloat(val);
+         if (!isNaN(parsed)) return parsed;
+         return 0;
       });
 
+      let result = '';
       switch (cmd.type) {
-         case 'M': return `M ${d[0]} ${d[1]}`;
-         case 'L': return `L ${d[0]} ${d[1]}`;
-         case 'C': return `C ${d[0]} ${d[1]}, ${d[2]} ${d[3]}, ${d[4]} ${d[5]}`;
-         case 'Q': return `Q ${d[0]} ${d[1]}, ${d[2]} ${d[3]}`;
+         case 'M':
+            curX = d[0];
+            curY = d[1];
+            result = `M ${d[0]} ${d[1]}`;
+            break;
+         case 'L':
+            curX = d[0];
+            curY = d[1];
+            result = `L ${d[0]} ${d[1]}`;
+            break;
+         case 'C':
+            curX = d[4];
+            curY = d[5];
+            result = `C ${d[0]} ${d[1]}, ${d[2]} ${d[3]}, ${d[4]} ${d[5]}`;
+            break;
+         case 'Q':
+            curX = d[2];
+            curY = d[3];
+            result = `Q ${d[0]} ${d[1]}, ${d[2]} ${d[3]}`;
+            break;
          case 'A':
-            // A wR hR stAng swAng -> svg A rx ry x-axis-rotation large-arc-flag sweep-flag x y
-            // Wait, OOXML arcTo is: "arcTo wR hR stAng swAng"
-            // It draws an arc from CURRENT point.
-            // It's part of an ellipse defined by wR, hR.
-            // This is extremely hard to map directly to SVG 'A' without start/end calculation.
-            // For now, let's implement a simplified conversion or use a helper to compute endpoint.
-            // Simplified: SVG Arc command requires destination.
-            // OOXML arcTo doesn't provide destination, it calculates it based on start angle and sweep angle.
-            return convertArcToSvg(d[0], d[1], d[2], d[3], vars); // Placeholder implementation
-         case 'Z': return 'Z';
+            // OOXML arcTo: wR, hR, stAng, swAng
+            // wR, hR = radii of the ellipse
+            // stAng = start angle (60000 units = 1 degree)
+            // swAng = sweep angle
+            const arcResult = convertArcToSvg(d[0], d[1], d[2], d[3], curX, curY);
+            curX = arcResult.endX;
+            curY = arcResult.endY;
+            result = arcResult.path;
+            break;
+         case 'Z':
+            result = 'Z';
+            break;
       }
-      return '';
+      return result;
    }).join(' ');
 }
 
-function convertArcToSvg(wR: number, hR: number, stAng: number, swAng: number, vars: Vars) {
-   // Current point (x0, y0) is needed... this is tricky without state.
-   // BUT the path builder usually appends strings.
-   // SVG Path `A rx ry x-rot large-arc sweep x y`
-   // We need endpoint x,y.
-   // Angle units: 60000 = 1 degree.
+interface ArcResult {
+   path: string;
+   endX: number;
+   endY: number;
+}
 
-   // Convert to radians
-   const stRad = stAng / 60000 * Math.PI / 180;
-   const swRad = swAng / 60000 * Math.PI / 180;
-   const endRad = stRad + swRad;
+function convertArcToSvg(wR: number, hR: number, stAng: number, swAng: number, curX: number, curY: number): ArcResult {
+    // OOXML uses Y-DOWN coordinates with positive angles = clockwise
+    const stAngDeg = stAng / 60000;
+    const swAngDeg = swAng / 60000;
+    const stRad = stAngDeg * Math.PI / 180;
+    const endRad = stRad + (swAngDeg * Math.PI / 180);
 
-   // The arc is typically relative to the bounding box of the implied ellipse... 
-   // Actually, OOXML "arcTo" implies the ellipse is centered at some point such that 
-   // the current pen position corresponds to stAng?
-   // "The parameters specify a bounding box... and start/sweep angles."
+    // For clockwise-positive Y-down coordinates:
+    // Point on ellipse: x = cx + rx * cos(θ), y = cy + ry * sin(θ)
+    // Given current point at stAng:
+    // curX = cx + rx * cos(stAng)  →  cx = curX - rx * cos(stAng)
+    // curY = cy + ry * sin(stAng)  →  cy = curY - ry * sin(stAng)
 
-   // Given the complexity of implementing exact Arcs without current point state, 
-   // we might skip Arcs or approximate.
-   // However, for basic shapes (arrow, rect, etc) Arcs are rarely used (except roundRect corners?).
-   // roundRect uses 'arcTo' or cubic? Usually arcTo for corners.
+    // Calculate ellipse center based on current point being at stAng
+    const cx = curX - wR * Math.cos(stRad);
+    const cy = curY - hR * Math.sin(stRad);
 
-   // Let's defer exact Arc implementation or approximate as Line for now if complex.
-   // Or assume arc is small corner.
-   return ``;
+    // Calculate end point (using same sign convention as cy)
+    const endX = cx + wR * Math.cos(endRad);
+    const endY = cy + hR * Math.sin(endRad);
+
+    // SVG arc parameters:
+    // A rx ry x-axis-rotation large-arc-flag sweep-flag x y
+    const largeArc = Math.abs(swAngDeg) > 180 ? 1 : 0;
+    // sweep-flag=1 means clockwise in SVG's Y-down system
+    const sweepFlag = swAng >= 0 ? 1 : 0;
+
+    const path = `A ${wR} ${hR} 0 ${largeArc} ${sweepFlag} ${endX} ${endY}`;
+
+    return { path, endX, endY };
 }
