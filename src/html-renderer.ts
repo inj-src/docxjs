@@ -1099,16 +1099,32 @@ section.${c}>footer { z-index: 1; }
 		// Get the unit from the original dimension
 		const unit = shapeWidth.replace(/[\d.]+/, '') || 'pt';
 
+		// Parse stroke width for viewBox padding calculation
+		// Stroke is drawn centered on the path, so half extends outside the shape bounds
+		let strokePadding = 0;
+		// Check if stroke will be applied (matches the logic used when rendering the stroke)
+		if (elem.stroke) {
+			// Use the same fallback as the stroke rendering: "1px"
+			const strokeWidthStr = elem.stroke.width || "1px";
+			let strokeW = parseFloat(strokeWidthStr) || 1;
+			const strokeUnit = strokeWidthStr.replace(/[\d.]+/, '') || 'px';
+			// Convert px to pt if needed (1pt ≈ 1.333px at 96dpi)
+			if (strokeUnit === 'px' && unit === 'pt') {
+				strokeW = strokeW / 1.333;
+			}
+			strokePadding = strokeW / 2; // Half stroke extends outside
+		}
+
 		// Create SVG container with ROTATED bounding box dimensions
 		const svg = this.htmlDocument.createElementNS(ns.svg, "svg") as SVGSVGElement;
 		svg.setAttribute("width", `${boundingW}${unit}`);
 		svg.setAttribute("height", `${boundingH}${unit}`);
-		// CRITICAL: Set viewBox to match the bounding box dimensions in user units.
-		// Without viewBox, the SVG's internal coordinate system uses pixels (user units),
-		// but the container size is in pt. This causes a mismatch where path coordinates
-		// (e.g., x=107.7) are interpreted as 107.7px inside a 107.7pt (143.6px) container.
-		// viewBox ensures the content scales to fill the container properly.
-		svg.setAttribute("viewBox", `0 0 ${boundingW} ${boundingH}`);
+		// CRITICAL: Expand viewBox to accommodate stroke that extends beyond shape bounds.
+		// The viewBox starts at negative coordinates to include the stroke padding,
+		// and the total size includes padding on both sides.
+		const viewBoxW = boundingW + strokePadding * 2;
+		const viewBoxH = boundingH + strokePadding * 2;
+		svg.setAttribute("viewBox", `${-strokePadding} ${-strokePadding} ${viewBoxW} ${viewBoxH}`);
 		svg.style.overflow = "hidden";
 
 		// Apply offset positioning ONLY if within a group.
