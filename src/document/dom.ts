@@ -60,7 +60,9 @@ export enum DomType {
 	CommentReference = "commentReference",
 	CommentRangeStart = "commentRangeStart",
 	CommentRangeEnd = "commentRangeEnd",
-    AltChunk = "altChunk"
+    AltChunk = "altChunk",
+    DrawingShape = "drawingShape",
+    DrawingGroup = "drawingGroup"
 }
 
 export interface OpenXmlElement {
@@ -164,4 +166,43 @@ export interface NumberingPicBullet {
     id: number;
     src: string;
     style?: string;
+}
+
+// Drawing Shape types
+export interface ShapeFill {
+    type: 'solid' | 'gradient' | 'none';
+    color?: string;
+}
+
+export interface ShapeStroke {
+    color?: string;
+    width?: string;
+}
+
+export interface WmlDrawingShape extends OpenXmlElement {
+    presetGeometry?: string;        // "rect", "ellipse", "roundRect", "downArrow", etc.
+    fill?: ShapeFill;
+    stroke?: ShapeStroke;
+    rotation?: number;              // degrees
+    textContent?: OpenXmlElement[]; // Text box content
+    // Visual bounding box dimensions (from extent - accounts for rotation)
+    extentWidth?: string;
+    extentHeight?: string;
+    // Position offset within a group (in pt)
+    offsetX?: string;
+    offsetY?: string;
+    adjustments?: Record<string, number>;
+    // Flag to indicate if shape is inside a group (affects positioning)
+    isInGroup?: boolean;
+    // Text anchor for vertical alignment: 't' (top), 'ctr' (center), 'b' (bottom)
+    textAnchor?: 't' | 'ctr' | 'b' | 'dist' | 'just';
+    // Text anchor for horizontal alignment: true if centered
+    textAnchorHorizontal?: boolean;
+}
+
+export interface WmlDrawingGroup extends OpenXmlElement {
+    rotation?: number;              // degrees
+    // Visual bounding box dimensions
+    extentWidth?: string;
+    extentHeight?: string;
 }

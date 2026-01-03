@@ -4,7 +4,9 @@ import {
 	WmlHyperlink, IDomImage, OpenXmlElement, WmlTableColumn, WmlTableCell, WmlText, WmlSymbol, WmlBreak, WmlNoteReference,
 	WmlSmartTag,
 	WmlAltChunk,
-	WmlTableRow
+	WmlTableRow,
+	WmlDrawingShape,
+	WmlDrawingGroup
 } from './document/dom';
 import { CommonProperties } from './document/common';
 import { Options } from './docx-preview';
@@ -12,6 +14,7 @@ import { DocumentElement } from './document/document';
 import { WmlParagraph } from './document/paragraph';
 import { asArray, encloseFontFamily, escapeClassName, isString, keyBy, mergeDeep } from './utils';
 import { computePixelToPoint, updateTabStop } from './javascript';
+import { evaluateGeometry } from './presets/geometry-evaluator';
 import { FontTablePart } from './font-table/font-table';
 import { FooterHeaderReference, SectionProperties } from './document/section';
 import { WmlRun, RunProperties } from './document/run';
@@ -751,6 +754,12 @@ section.${c}>footer { z-index: 1; }
 			case DomType.Image:
 				return this.renderImage(elem as IDomImage);
 
+			case DomType.DrawingShape:
+				return this.renderShape(elem as WmlDrawingShape);
+
+			case DomType.DrawingGroup:
+				return this.renderGroup(elem as WmlDrawingGroup);
+
 			case DomType.Text:
 				return this.renderText(elem as WmlText);
 
@@ -1066,6 +1075,264 @@ section.${c}>footer { z-index: 1; }
 		}
 
 		return result;
+	}
+
+	renderShape(elem: WmlDrawingShape): Node {
+		// Shape's original (unrotated) dimensions
+		const shapeWidth = elem.cssStyle?.width || "100px";
+		const shapeHeight = elem.cssStyle?.height || "100px";
+
+		// Parse numeric values for calculations
+		const shapeW = parseFloat(shapeWidth);
+		const shapeH = parseFloat(shapeHeight);
+		const rotation = elem.rotation || 0;
+
+		// Calculate rotated bounding box dimensions
+		const radians = (rotation * Math.PI) / 180;
+		const cos = Math.abs(Math.cos(radians));
+		const sin = Math.abs(Math.sin(radians));
+
+		// Rotated bounding box dimensions
+		const boundingW = shapeW * cos + shapeH * sin;
+		const boundingH = shapeW * sin + shapeH * cos;
+
+		// Get the unit from the original dimension
+		const unit = shapeWidth.replace(/[\d.]+/, '') || 'pt';
+
+		// Parse stroke width for viewBox padding calculation
+		// Stroke is drawn centered on the path, so half extends outside the shape bounds
+		let strokePadding = 0;
+		// Check if stroke will be applied (matches the logic used when rendering the stroke)
+		if (elem.stroke) {
+			// Use the same fallback as the stroke rendering: "1px"
+			const strokeWidthStr = elem.stroke.width || "1px";
+			let strokeW = parseFloat(strokeWidthStr) || 1;
+			const strokeUnit = strokeWidthStr.replace(/[\d.]+/, '') || 'px';
+			// Convert px to pt if needed (1pt ≈ 1.333px at 96dpi)
+			if (strokeUnit === 'px' && unit === 'pt') {
+				strokeW = strokeW / 1.333;
+			}
+			strokePadding = strokeW / 2; // Half stroke extends outside
+		}
+
+		// Create SVG container with ROTATED bounding box dimensions
+		const svg = this.htmlDocument.createElementNS(ns.svg, "svg") as SVGSVGElement;
+		svg.setAttribute("width", `${boundingW}${unit}`);
+		svg.setAttribute("height", `${boundingH}${unit}`);
+		// CRITICAL: Expand viewBox to accommodate stroke that extends beyond shape bounds.
+		// The viewBox starts at negative coordinates to include the stroke padding,
+		// and the total size includes padding on both sides.
+		const viewBoxW = boundingW + strokePadding * 2;
+		const viewBoxH = boundingH + strokePadding * 2;
+		svg.setAttribute("viewBox", `${-strokePadding} ${-strokePadding} ${viewBoxW} ${viewBoxH}`);
+		svg.style.overflow = "hidden";
+
+		// Apply offset positioning ONLY if within a group.
+		// For inline shapes (not in a group), we don't apply offset positioning
+		// even if offset values exist, because the shape should flow inline with text.
+		// OOXML offset specifies the position of the unrotated shape's top-left corner.
+		// The shape is then rotated around its center.
+		// We need to calculate where our rotated bounding box should be positioned
+		// so that its center aligns with the intended center of the rotated shape.
+		if (elem.isInGroup) {
+			const offsetX = parseFloat(elem.offsetX || "0");
+			const offsetY = parseFloat(elem.offsetY || "0");
+
+			// Calculate the center of the shape based on the unrotated offset
+			// (offset is top-left of unrotated shape, center is at offset + half dimensions)
+			const centerX = offsetX + shapeW / 2;
+			const centerY = offsetY + shapeH / 2;
+
+			// Position the rotated bounding box so its center aligns with the calculated center
+			const adjustedLeft = centerX - boundingW / 2;
+			const adjustedTop = centerY - boundingH / 2;
+
+			svg.style.position = "absolute";
+			svg.style.left = `${adjustedLeft}${unit}`;
+			svg.style.top = `${adjustedTop}${unit}`;
+		}
+
+		// Create a group for the rotated content
+		const g = this.htmlDocument.createElementNS(ns.svg, "g") as SVGGElement;
+
+		// Apply internal SVG rotation if needed
+		if (rotation !== 0) {
+			// Translate to center of bounding box, rotate, then translate back to center the shape
+			g.setAttribute("transform",
+				`translate(${boundingW / 2}, ${boundingH / 2}) rotate(${rotation}) translate(${-shapeW / 2}, ${-shapeH / 2})`
+			);
+		}
+
+		// Evaluate geometry using presets
+		const presetName = elem.presetGeometry || 'rect';
+		let paths = evaluateGeometry(presetName, shapeW, shapeH, elem.adjustments);
+
+		// Fallback to rect if no paths found (e.g. invalid preset name)
+		if (!paths || paths.length === 0) {
+			paths = evaluateGeometry('rect', shapeW, shapeH, elem.adjustments);
+		}
+
+		for (const pDef of paths) {
+			const shape = this.htmlDocument.createElementNS(ns.svg, "path") as SVGPathElement;
+			shape.setAttribute("d", pDef.d);
+
+			// Apply fill
+			if (pDef.fill === 'none') {
+				shape.setAttribute("fill", "none");
+			} else if (elem.fill) {
+				if (elem.fill.type === 'none') {
+					shape.setAttribute("fill", "none");
+				} else if (elem.fill.color) {
+					shape.setAttribute("fill", elem.fill.color);
+				} else {
+					shape.setAttribute("fill", "transparent");
+				}
+			} else {
+				shape.setAttribute("fill", "transparent");
+			}
+
+			// Apply stroke
+			if (pDef.stroke === false) {
+				shape.setAttribute("stroke", "none");
+			} else if (elem.stroke) {
+				shape.setAttribute("stroke", elem.stroke.color || "black");
+				shape.setAttribute("stroke-width", elem.stroke.width || "1px");
+			} else {
+				shape.setAttribute("stroke", "none");
+			}
+
+			g.appendChild(shape);
+		}
+
+		// Handle text box content
+		if (elem.textContent?.length) {
+			const foreignObject = this.htmlDocument.createElementNS(ns.svg, "foreignObject");
+			foreignObject.setAttribute("x", "0");
+			foreignObject.setAttribute("y", "0");
+			foreignObject.setAttribute("width", String(shapeW));
+			foreignObject.setAttribute("height", String(shapeH));
+
+			// Determine vertical alignment based on textAnchor property
+			// For shapes like triangles that don't have explicit anchor, default to center
+			// to prevent text clipping at narrow ends
+			let alignItems = 'flex-start'; // default: top
+			let justifyContent = 'flex-start'; // default: left
+
+			const defaults = this.getDefaultTextAnchor(presetName);
+
+			// Vertical alignment (align-items)
+			const verticalAnchor = elem.textAnchor || defaults.vertical;
+			switch (verticalAnchor) {
+				case 'ctr':
+					alignItems = 'center';
+					break;
+				case 'b':
+					alignItems = 'flex-end';
+					break;
+				case 'dist':
+				case 'just':
+					alignItems = 'center'; // approximate distributed/justified as center
+					break;
+				// 't' or undefined falls through to flex-start
+			}
+
+			// Horizontal alignment (justify-content)
+			// Use explicit horizontal anchor if present, otherwise use default based on shape type
+			const isHorizontallyCentered = elem.textAnchorHorizontal ?? defaults.horizontal;
+			if (isHorizontallyCentered) {
+				justifyContent = 'center';
+			}
+
+			const div = this.createElement("div", {
+				style: `width: 100%; height: 100%; display: flex; align-items: ${alignItems}; justify-content: ${justifyContent}; padding: 5px; box-sizing: border-box;`
+			});
+			const innerDiv = this.createElement("div");
+			this.renderElements(elem.textContent, innerDiv);
+			div.appendChild(innerDiv);
+			foreignObject.appendChild(div);
+			g.appendChild(foreignObject);
+		}
+
+		svg.appendChild(g);
+		return svg;
+	}
+
+	/**
+	 * Returns the default text anchor for a shape based on its geometry.
+	 * Shapes with narrow tops (like upward triangles) or narrow bottoms (like downward triangles)
+	 * default to 'ctr' to prevent text clipping.
+	 */
+	getDefaultTextAnchor(presetName: string): { vertical: 't' | 'ctr' | 'b', horizontal: boolean } {
+		// Shapes that should default to center alignment to avoid text clipping
+		const centerAlignedShapes = [
+			// Triangles and arrows with narrow regions
+			'triangle', 'rtTriangle',
+			'upArrow', 'downArrow', 'leftArrow', 'rightArrow',
+			'upDownArrow', 'leftRightArrow',
+			'bentUpArrow', 'uturnArrow', 'curvedUpArrow', 'curvedDownArrow',
+			'stripedRightArrow', 'notchedRightArrow',
+			'chevron', 'homePlate',
+			// Stars and complex shapes
+			'star4', 'star5', 'star6', 'star7', 'star8', 'star10', 'star12', 'star16', 'star24', 'star32',
+			'irregularSeal1', 'irregularSeal2',
+			// Callouts and bubbles
+			'wedgeRoundRectCallout', 'wedgeRectCallout', 'wedgeEllipseCallout',
+			'cloudCallout',
+			// Other asymmetric shapes
+			'pentagon', 'hexagon', 'heptagon', 'octagon', 'decagon', 'dodecagon',
+			'pie', 'pieWedge', 'arc'
+		];
+
+		if (centerAlignedShapes.includes(presetName)) {
+			return { vertical: 'ctr', horizontal: true };
+		}
+
+		return { vertical: 't', horizontal: false }; // Default to top-left for regular shapes
+	}
+
+	renderGroup(elem: WmlDrawingGroup): Node {
+		// Get group dimensions
+		const groupWidth = elem.cssStyle?.width || elem.extentWidth || "100px";
+		const groupHeight = elem.cssStyle?.height || elem.extentHeight || "100px";
+
+		// Parse numeric values
+		const groupW = parseFloat(groupWidth);
+		const groupH = parseFloat(groupHeight);
+		const rotation = elem.rotation || 0;
+
+		// Calculate rotated bounding box dimensions
+		const radians = (rotation * Math.PI) / 180;
+		const cos = Math.abs(Math.cos(radians));
+		const sin = Math.abs(Math.sin(radians));
+
+		const boundingW = groupW * cos + groupH * sin;
+		const boundingH = groupW * sin + groupH * cos;
+
+		// Get the unit from the original dimension
+		const unit = groupWidth.replace(/[\d.]+/, '') || 'pt';
+
+		// Create a container div with relative positioning for child absolute positioning
+		const container = this.createElement("div", {
+			style: `position: relative; width: ${boundingW}${unit}; height: ${boundingH}${unit}; display: inline-block;`
+		});
+
+		// Render child shapes into the group
+		if (elem.children) {
+			for (const child of elem.children) {
+				const rendered = this.renderElement(child);
+				if (rendered) {
+					if (Array.isArray(rendered)) {
+						for (const node of rendered) {
+							if (node) container.appendChild(node);
+						}
+					} else {
+						container.appendChild(rendered);
+					}
+				}
+			}
+		}
+
+		return container;
 	}
 
 	renderText(elem: WmlText) {
