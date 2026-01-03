@@ -1130,6 +1130,16 @@ export class DocumentParser {
 			}
 		}
 
+		// Parse body properties for text anchor (vertical alignment)
+		const bodyPr = xml.element(elem, "bodyPr");
+		if (bodyPr) {
+			const anchor = xml.attr(bodyPr, "anchor");
+			if (anchor && ['t', 'ctr', 'b', 'dist', 'just'].includes(anchor)) {
+				result.textAnchor = anchor as 't' | 'ctr' | 'b' | 'dist' | 'just';
+			}
+			result.textAnchorHorizontal = xml.boolAttr(bodyPr, "anchorCtr");
+		}
+
 		return result;
 	}
 

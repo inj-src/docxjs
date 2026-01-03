@@ -194,6 +194,10 @@ export interface WmlDrawingShape extends OpenXmlElement {
     adjustments?: Record<string, number>;
     // Flag to indicate if shape is inside a group (affects positioning)
     isInGroup?: boolean;
+    // Text anchor for vertical alignment: 't' (top), 'ctr' (center), 'b' (bottom)
+    textAnchor?: 't' | 'ctr' | 'b' | 'dist' | 'just';
+    // Text anchor for horizontal alignment: true if centered
+    textAnchorHorizontal?: boolean;
 }
 
 export interface WmlDrawingGroup extends OpenXmlElement {

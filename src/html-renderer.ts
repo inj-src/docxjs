@@ -1212,8 +1212,39 @@ section.${c}>footer { z-index: 1; }
 			foreignObject.setAttribute("width", String(shapeW));
 			foreignObject.setAttribute("height", String(shapeH));
 
+			// Determine vertical alignment based on textAnchor property
+			// For shapes like triangles that don't have explicit anchor, default to center
+			// to prevent text clipping at narrow ends
+			let alignItems = 'flex-start'; // default: top
+			let justifyContent = 'flex-start'; // default: left
+
+			const defaults = this.getDefaultTextAnchor(presetName);
+
+			// Vertical alignment (align-items)
+			const verticalAnchor = elem.textAnchor || defaults.vertical;
+			switch (verticalAnchor) {
+				case 'ctr':
+					alignItems = 'center';
+					break;
+				case 'b':
+					alignItems = 'flex-end';
+					break;
+				case 'dist':
+				case 'just':
+					alignItems = 'center'; // approximate distributed/justified as center
+					break;
+				// 't' or undefined falls through to flex-start
+			}
+
+			// Horizontal alignment (justify-content)
+			// Use explicit horizontal anchor if present, otherwise use default based on shape type
+			const isHorizontallyCentered = elem.textAnchorHorizontal ?? defaults.horizontal;
+			if (isHorizontallyCentered) {
+				justifyContent = 'center';
+			}
+
 			const div = this.createElement("div", {
-				style: "width: 100%; height: 100%; display: flex; align-items: flex-start; justify-content: flex-start; padding: 5px; box-sizing: border-box;"
+				style: `width: 100%; height: 100%; display: flex; align-items: ${alignItems}; justify-content: ${justifyContent}; padding: 5px; box-sizing: border-box;`
 			});
 			const innerDiv = this.createElement("div");
 			this.renderElements(elem.textContent, innerDiv);
@@ -1224,6 +1255,39 @@ section.${c}>footer { z-index: 1; }
 
 		svg.appendChild(g);
 		return svg;
+	}
+
+	/**
+	 * Returns the default text anchor for a shape based on its geometry.
+	 * Shapes with narrow tops (like upward triangles) or narrow bottoms (like downward triangles)
+	 * default to 'ctr' to prevent text clipping.
+	 */
+	getDefaultTextAnchor(presetName: string): { vertical: 't' | 'ctr' | 'b', horizontal: boolean } {
+		// Shapes that should default to center alignment to avoid text clipping
+		const centerAlignedShapes = [
+			// Triangles and arrows with narrow regions
+			'triangle', 'rtTriangle',
+			'upArrow', 'downArrow', 'leftArrow', 'rightArrow',
+			'upDownArrow', 'leftRightArrow',
+			'bentUpArrow', 'uturnArrow', 'curvedUpArrow', 'curvedDownArrow',
+			'stripedRightArrow', 'notchedRightArrow',
+			'chevron', 'homePlate',
+			// Stars and complex shapes
+			'star4', 'star5', 'star6', 'star7', 'star8', 'star10', 'star12', 'star16', 'star24', 'star32',
+			'irregularSeal1', 'irregularSeal2',
+			// Callouts and bubbles
+			'wedgeRoundRectCallout', 'wedgeRectCallout', 'wedgeEllipseCallout',
+			'cloudCallout',
+			// Other asymmetric shapes
+			'pentagon', 'hexagon', 'heptagon', 'octagon', 'decagon', 'dodecagon',
+			'pie', 'pieWedge', 'arc'
+		];
+
+		if (centerAlignedShapes.includes(presetName)) {
+			return { vertical: 'ctr', horizontal: true };
+		}
+
+		return { vertical: 't', horizontal: false }; // Default to top-left for regular shapes
 	}
 
 	renderGroup(elem: WmlDrawingGroup): Node {

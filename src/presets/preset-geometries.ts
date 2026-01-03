@@ -53626,6 +53626,168 @@ export const presetGeometries: PresetGeometryMap = {
       "b": "b"
     }
   },
+  "upArrow": {
+    "adjustments": {
+      "adj1": 50000,
+      "adj2": 50000
+    },
+    "guides": [
+      {
+        "name": "maxAdj2",
+        "op": "*/",
+        "args": [
+          "100000",
+          "h",
+          "ss"
+        ]
+      },
+      {
+        "name": "a1",
+        "op": "pin",
+        "args": [
+          "0",
+          "adj1",
+          "100000"
+        ]
+      },
+      {
+        "name": "a2",
+        "op": "pin",
+        "args": [
+          "0",
+          "adj2",
+          "maxAdj2"
+        ]
+      },
+      {
+        "name": "dy1",
+        "op": "*/",
+        "args": [
+          "ss",
+          "a2",
+          "100000"
+        ]
+      },
+      {
+        "name": "y1",
+        "op": "val",
+        "args": [
+          "dy1"
+        ]
+      },
+      {
+        "name": "dx1",
+        "op": "*/",
+        "args": [
+          "w",
+          "a1",
+          "200000"
+        ]
+      },
+      {
+        "name": "x1",
+        "op": "+-",
+        "args": [
+          "hc",
+          "0",
+          "dx1"
+        ]
+      },
+      {
+        "name": "x2",
+        "op": "+-",
+        "args": [
+          "hc",
+          "dx1",
+          "0"
+        ]
+      },
+      {
+        "name": "dy2",
+        "op": "*/",
+        "args": [
+          "x1",
+          "dy1",
+          "wd2"
+        ]
+      },
+      {
+        "name": "y2",
+        "op": "+-",
+        "args": [
+          "y1",
+          "0",
+          "dy2"
+        ]
+      }
+    ],
+    "paths": [
+      {
+        "stroke": true,
+        "commands": [
+          {
+            "type": "M",
+            "data": [
+              "l",
+              "y1"
+            ]
+          },
+          {
+            "type": "L",
+            "data": [
+              "hc",
+              "t"
+            ]
+          },
+          {
+            "type": "L",
+            "data": [
+              "r",
+              "y1"
+            ]
+          },
+          {
+            "type": "L",
+            "data": [
+              "x2",
+              "y1"
+            ]
+          },
+          {
+            "type": "L",
+            "data": [
+              "x2",
+              "b"
+            ]
+          },
+          {
+            "type": "L",
+            "data": [
+              "x1",
+              "b"
+            ]
+          },
+          {
+            "type": "L",
+            "data": [
+              "x1",
+              "y1"
+            ]
+          },
+          {
+            "type": "Z",
+            "data": []
+          }
+        ]
+      }
+    ],
+    "textRect": {
+      "l": "x1",
+      "t": "y2",
+      "r": "x2",
+      "b": "b"
+    }
+  },
   "upArrowCallout": {
     "adjustments": {
       "adj1": 25000,
