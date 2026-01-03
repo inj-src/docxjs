@@ -1,6 +1,6 @@
 {
   "name": "@inj-src/docx-preview",
-  "version": "0.3.8",
+  "version": "0.3.9",
   "description": "Maintained fork of docx-preview for rendering DOCX documents in HTML.",
   "license": "Apache-2.0",
   "keywords": [
